@@ -117,6 +117,12 @@ kvs_result kvs_close_device(kvs_device_handle user_dev);
   /* Container related features are not supported yet 
    * A dummy container will be created after the call
    */
+
+
+kvs_result kvs_open_table(const char * name);
+void kvs_close_table();
+kvs_result kvs_actual_key(char* key);
+
 kvs_result kvs_create_container (kvs_device_handle dev_hd, const char *name, uint64_t size, const kvs_container_context *ctx);
   
 kvs_result kvs_delete_container (kvs_device_handle dev_hd, const char *cont_name);

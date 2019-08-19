@@ -47,7 +47,7 @@
 #include <list>
 //#include <regex>
 #include <string>
-
+#include <cstring>
 struct {
   bool initialized = false;
   bool use_spdk = false;
@@ -68,7 +68,7 @@ struct {
 } g_env;
 
 std::map<int, std::string> errortable;
-
+char table[32];
 kvs_result kvs_exit_env() {
 
   std::list<kvs_device_handle > clone(g_env.open_devices.begin(),
@@ -353,11 +353,13 @@ const char *kvs_errstr(int32_t errorno) {
 kvs_result kvs_open_device(const char *dev_path, kvs_device_handle *dev_hd) {
   int ret = 0;
 
+  fprintf(stderr, "start kvs_open_device\n");
   if(dev_path == NULL)
   {
     fprintf(stderr, "Please specify a valid device path\n");
     return KVS_ERR_PARAM_INVALID;
   }
+  fprintf(stderr, "after dev_path\n");
   
   build_error_table();
   
@@ -369,6 +371,7 @@ kvs_result kvs_open_device(const char *dev_path, kvs_device_handle *dev_hd) {
 	
   kvs_device_handle user_dev = (kvs_device_handle)malloc(sizeof(struct _kvs_device_handle));
   
+  fprintf(stderr, "before find local device from path\n");
   kv_device_priv *dev  = _find_local_device_from_path(dev_path, g_env.list_devices);
   if (dev == 0) {
     WRITE_ERR("can't find the device: %s\n", dev_path);
@@ -379,6 +382,7 @@ kvs_result kvs_open_device(const char *dev_path, kvs_device_handle *dev_hd) {
   user_dev->dev = dev;
   user_dev->driver = _select_driver(dev);
 
+  fprintf(stderr, "before with_spdk\n");
 #if defined WITH_SPDK
   if(dev->isspdkdev){
     int curr_dev = g_env.udd_option.num_devices;
@@ -391,14 +395,19 @@ kvs_result kvs_open_device(const char *dev_path, kvs_device_handle *dev_hd) {
     exit(1);
   }
 #else
-  if(dev->isemul || dev->iskerneldev)
+  if(dev->isemul || dev->iskerneldev) {
+	
+  	fprintf(stderr, "before do dev->iskverneldev\n");
     ret = user_dev->driver->init(dev_path, g_env.configfile, g_env.queuedepth, g_env.is_polling);
+  }
 #endif
   
+  fprintf(stderr, "before push_back\n");
   g_env.open_devices.push_back(user_dev);
 
   *dev_hd = user_dev;
 
+  fprintf(stderr, "ret: %d\n", ret);
   return (kvs_result)ret;
 }
 
@@ -417,6 +426,27 @@ kvs_result kvs_close_device(kvs_device_handle user_dev) {
   return KVS_SUCCESS;
 }
 
+kvs_result kvs_open_table(const char * name) {
+	memset(table, 0, 32);
+	strcat(table, name);
+	fprintf(stdout, "open table: %s\n", table);
+	return KVS_SUCCESS;
+}
+
+void kvs_close_table() {
+	memset(table, 0, 32);
+}
+
+kvs_result kvs_actual_key (char* key) {
+	char* tmp;
+	tmp = new char[strlen(key)];
+	memcpy(key, table, strlen(table));
+	sprintf(tmp, "%s", key);
+	sprintf(key, "%s", table);
+	memcpy(key + strlen(table), tmp, strlen(tmp));
+	
+	return KVS_SUCCESS;
+}
 
 kvs_result kvs_create_container (kvs_device_handle dev_hd, const char *name, uint64_t size, const kvs_container_context *ctx) {
   /*
